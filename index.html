@@ -2,8 +2,8 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Barbie: Caverna de Cupcakes - Master Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Barbie: Caverna de Cupcakes - Versão do Filme</title>
     <style>
         body {
             margin: 0;
@@ -13,61 +13,87 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            font-family: 'Courier New', Courier, monospace;
+            font-family: 'Arial', sans-serif;
             overflow: hidden;
+            touch-action: none;
         }
         #cutie-dialogue {
-            background: white;
-            border: 4px solid #00ffff;
-            border-radius: 15px;
-            padding: 10px 20px;
-            width: 760px;
-            margin-bottom: 15px;
-            box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+            background: #fff0f5;
+            border: 3px solid #ff69b4;
+            border-radius: 12px;
+            padding: 8px 15px;
+            width: 90%;
+            max-width: 360px;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 10px rgba(255,20,147,0.2);
+            font-size: 13px;
             font-weight: bold;
-            color: #333;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            min-height: 50px;
+            color: #ff1493;
+            text-align: center;
         }
-        #cutie-img {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border: 2px solid #ff1493;
-            object-fit: cover;
+        #canvas-container {
+            position: relative;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 4px solid #ff69b4;
         }
         canvas {
-            background: linear-gradient(#ffe4e1, #ffc0cb);
-            border: 4px solid #ff69b4;
-            border-radius: 10px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            background: linear-gradient(#ffb6c1, #ffe4e1);
+            display: block;
         }
-        .controls-hint {
-            margin-top: 10px;
+        /* Painel de Botões Virtuais para o Celular */
+        #mobile-controls {
+            display: flex;
+            justify-content: space-between;
+            width: 90%;
+            max-width: 360px;
+            margin-top: 12px;
+            gap: 20px;
+        }
+        .btn {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
             color: white;
-            font-size: 14px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            border: none;
+            border-radius: 50px;
+            box-shadow: 0 5px 0 #db127d;
+            background: linear-gradient(#ff1493, #ff69b4);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            cursor: pointer;
             text-align: center;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #db127d;
+        }
+        #btn-shoot {
+            background: linear-gradient(#00ffff, #00bfff);
+            box-shadow: 0 5px 0 #008b8b;
+        }
+        #btn-shoot:active {
+            box-shadow: 0 1px 0 #008b8b;
         }
     </style>
 </head>
 <body>
 
 <div id="cutie-dialogue">
-    <img id="cutie-img" src="https://unsplash.com" alt="Cutie">
-    <div>
-        <span style="color: #ff1493;">Cutie:</span> 
-        <span id="dialogue-text">Carregando motores de renderização... Clique no jogo para o som funcionar!</span>
-    </div>
+    🤖 <span id="dialogue-text">Carregando os gráficos do filme... Toque na tela para ativar o som e os patins!</span>
 </div>
 
-<canvas id="gameCanvas" width="800" height="400"></canvas>
-<div class="controls-hint">
-    <strong>ESPAÇO / SETA UP:</strong> Pular ou Voar | 
-    <strong>TECLA X:</strong> Lança-Cupcakes 🧁 | 
-    <strong>TECLA R:</strong> Reiniciar
+<div id="canvas-container">
+    <canvas id="gameCanvas" width="400" height="240"></canvas>
+</div>
+
+<!-- Botões de toque visíveis no celular -->
+<div id="mobile-controls">
+    <button class="btn" id="btn-jump">PULAR / VOAR</button>
+    <button class="btn" id="btn-shoot">ATIRAR 🧁</button>
 </div>
 
 <script>
@@ -75,133 +101,130 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const dialogueText = document.getElementById("dialogue-text");
 
-// --- CARREGAMENTO DE IMAGENS REAIS ---
+// --- URLS DE GRÁFICOS REAIS (Substituindo os quadrados antigos) ---
 const imgBarbie = new Image(); imgBarbie.src = "https://postimg.cc";
+const imgCutie = new Image(); imgCutie.src = "https://unsplash.com"; // Foto do Cutie
 const imgFly = new Image(); imgFly.src = "https://postimg.cc";
 const imgGummy = new Image(); imgGummy.src = "https://postimg.cc";
 const imgCupcake = new Image(); imgCupcake.src = "https://postimg.cc";
 const imgWings = new Image(); imgWings.src = "https://postimg.cc";
 
-// Configurações do Jogo
+// Estado Geral
 let score = 0;
 let gameOver = false;
-let gameSpeed = 5;
-const normalGravity = 0.6;
-let gravity = normalGravity;
-
-// Sistema de Vidas e Invulnerabilidade temporária pós-dano
+let gameSpeed = 3.5;
+const gravity = 0.4;
 let lives = 3;
-let invulnerableFrames = 0;
+let invulnerable = 0;
 
-// Estado do Power-up de Voo
+// Power-up de Voo
 let hasWings = false;
 let wingsTimer = 0;
 
-// Posições para o Efeito Parallax (Cenário de Fundo Móvel)
-let bgX1 = 0;
-let bgX2 = 800;
-let floorX1 = 0;
-let floorX2 = 800;
+// Posições Parallax (Fundo mágico)
+let bgX = 0;
+let floorX = 0;
 
-// Audio Context
+// Entidades
+const player = { x: 50, y: 150, width: 34, height: 48, vy: 0, isJumping: false };
+// Nova mecânica: Cutie voando fisicamente ao lado esquerdo da Barbie
+const cutieSidekick = { x: 15, y: 140, targetY: 140, width: 22, height: 22 };
+
+const obstacles = []; const collectibles = []; const particles = []; const projectiles = []; const powerups = [];
+
+// Audio Ativado por Ação do Usuário
 let audioCtx = null;
 function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
 
 function playSound(type) {
     if (!audioCtx) return;
     try {
-        let osc = audioCtx.createOscillator();
-        let gain = audioCtx.createGain();
+        let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
         osc.connect(gain); gain.connect(audioCtx.destination);
         if (type === 'jump') {
-            osc.type = 'triangle'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(hasWings ? 800 : 500, audioCtx.currentTime + 0.15);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(hasWings ? 700 : 450, audioCtx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.12);
         } else if (type === 'collect') {
-            osc.type = 'sine'; osc.frequency.setValueAtTime(587, audioCtx.currentTime);
-            osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.2);
-        } else if (type === 'powerup') {
-            osc.type = 'sine'; osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.4);
-            gain.gain.setValueAtTime(0.15, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(550, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.18);
         } else if (type === 'hit') {
-            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(180, audioCtx.currentTime);
-            osc.frequency.linearRampToValueAtTime(60, audioCtx.currentTime + 0.3);
-            gain.gain.setValueAtTime(0.2, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.2);
         }
     } catch(e){}
 }
 
-// Inteligência do Cutie (Dicas e respostas contextuais baseadas em tempo real)
-function cutieSpeak(action) {
-    const responses = {
-        start: "Cenário carregado! Note que as montanhas de chocolate ao fundo se movem mais devagar. Isso é física Parallax!",
-        jump: "Belo pulo! Seus reflexos estão excelentes nesse teclado!",
-        shoot: "POW! O Lança-Cupcakes está limpando os bugs do código!",
-        powerup: "INCRÍVEL! Você coletou as asas! Segure ESPAÇO ou SETA PARA CIMA para voar alto!",
-        hurt: "Ai! Perdemos um coração de vida! Fique atento, o jogo está acelerando!",
-        low_life: "PERIGO! Você só tem 1 coração! Não deixe as moscas corromperem o jogo de vez!",
-        gameover: "Oh não, a barra de vida zerou! Pressione 'R' para resetar a simulação e tentar de novo!"
+function updateCutieDialogue(event) {
+    const lines = {
+        start: "Estamos dentro do código da Caverna de Cupcakes! Vamos lá, Barbie!",
+        powerup: "Uau! O código das asas funcionou! Segure o botão para voar!",
+        hit: "Cuidado! Esse bug tirou um dos nossos corações de energia!",
+        low: "Aviso do sistema: Só nos resta um coração! Foco total!",
+        gameover: "A simulação travou! Toque na tela para reiniciar o nível!"
     };
-    if(responses[action]) dialogueText.innerText = responses[action];
+    if(lines[event]) dialogueText.innerText = lines[event];
 }
 
-// Arrays de gerenciamento
-const player = { x: 80, y: 290, width: 50, height: 70, vy: 0, isJumping: false };
-const obstacles = []; const collectibles = []; const particles = []; const projectiles = []; const powerups = [];
-
-// Captura de Teclado
-const keys = {};
-window.addEventListener("keydown", (e) => {
+// Configuração de Controles (Teclado + Toque nos Botões)
+function handleJump() {
+    if (gameOver) { restartGame(); return; }
     initAudio();
-    keys[e.code] = true;
-    
-    if ((e.code === "Space" || e.code === "ArrowUp") && !gameOver) {
-        if (!player.isJumping && !hasWings) {
-            player.vy = -12;
-            player.isJumping = true;
-            playSound('jump');
-            if(Math.random() > 0.7) cutieSpeak("jump");
-        }
+    if (hasWings) {
+        player.vy = -3.5;
+        createStars(player.x, player.y + 20, "#00ffff");
+    } else if (!player.isJumping) {
+        player.vy = -8.5;
+        player.isJumping = true;
+        playSound('jump');
     }
-    if (e.code === "KeyX" && !gameOver) {
-        projectiles.push({ x: player.x + player.width, y: player.y + 30, width: 20, height: 20, speed: 10 });
-        playSound('hit');
-        if(Math.random() > 0.8) cutieSpeak("shoot");
-    }
+}
+
+function handleShoot() {
+    if (gameOver) return;
+    initAudio();
+    projectiles.push({ x: player.x + player.width, y: player.y + 20, width: 14, height: 14, speed: 6.5 });
+    playSound('hit');
+}
+
+// Eventos de Botões do Celular
+document.getElementById("btn-jump").addEventListener("touchstart", (e) => { e.preventDefault(); handleJump(); });
+document.getElementById("btn-shoot").addEventListener("touchstart", (e) => { e.preventDefault(); handleShoot(); });
+// Suporte extra para clique no PC caso queira testar
+document.getElementById("btn-jump").addEventListener("mousedown", handleJump);
+document.getElementById("btn-shoot").addEventListener("mousedown", handleShoot);
+
+window.addEventListener("keydown", (e) => {
+    if (e.code === "Space" || e.code === "ArrowUp") handleJump();
+    if (e.code === "KeyX") handleShoot();
     if (e.code === "KeyR" && gameOver) restartGame();
 });
-window.addEventListener("keyup", (e) => { keys[e.code] = false; });
-canvas.addEventListener("click", () => initAudio());
+canvas.addEventListener("touchstart", () => initAudio());
 
-// Loops de Geração Dinâmica
+// Spawners de Itens
 function spawnObstacle() {
     if (gameOver) return;
-    obstacles.push({ x: canvas.width, y: 310, width: 35, height: 35, type: Math.random() > 0.5 ? 'fly' : 'gummy' });
-    setTimeout(spawnObstacle, Math.random() * 1500 + 1300);
+    obstacles.push({ x: canvas.width, y: 180, width: 24, height: 24, type: Math.random() > 0.5 ? 'fly' : 'gummy' });
+    setTimeout(spawnObstacle, Math.random() * 1600 + 1400);
 }
-
 function spawnCupcake() {
     if (gameOver) return;
-    collectibles.push({ x: canvas.width, y: Math.random() * 120 + 150, width: 30, height: 30 });
-    setTimeout(spawnCupcake, Math.random() * 1000 + 800);
+    collectibles.push({ x: canvas.width, y: Math.random() * 70 + 100, width: 20, height: 20 });
+    setTimeout(spawnCupcake, Math.random() * 1200 + 900);
 }
-
 function spawnPowerup() {
     if (gameOver) return;
-    if (!hasWings && powerups.length === 0) {
-        powerups.push({ x: canvas.width, y: 180, width: 35, height: 35 });
-    }
-    setTimeout(spawnPowerup, Math.random() * 10000 + 8000);
+    if (!hasWings && powerups.length === 0) powerups.push({ x: canvas.width, y: 120, width: 22, height: 22 });
+    setTimeout(spawnPowerup, 12000);
 }
 
 function createStars(x, y, color = null) {
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 6; i++) {
         particles.push({
             x: x, y: y,
-            vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
-            size: Math.random() * 3 + 2, alpha: 1,
+            vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
+            size: Math.random() * 2 + 1.5, alpha: 1,
             color: color || (Math.random() > 0.5 ? "#ff1493" : "#00ffff")
         });
     }
@@ -211,101 +234,61 @@ function checkCollision(r1, r2) {
     return r1.x < r2.x + r2.width && r1.x + r1.width > r2.x && r1.y < r2.y + r2.height && r1.y + r1.height > r2.y;
 }
 
-// --- DESENHO DO PARALLAX BACKGROUND VIA CÓDIGO ---
-function drawParallaxBackground() {
-    // Camada Distante: Se move bem devagar (Velocidade = gameSpeed * 0.2)
-    bgX1 -= gameSpeed * 0.2;
-    bgX2 -= gameSpeed * 0.2;
-    if (bgX1 <= -800) bgX1 = 800 + bgX2;
-    if (bgX2 <= -800) bgX2 = 800 + bgX1;
-
-    // Desenhar Montanhas de Chocolate na posição 1 e 2 para emenda infinita
-    ctx.fillStyle = "#d2691e";
-    ctx.beginPath(); ctx.arc(bgX1 + 200, 400, 160, Math.PI, 0); ctx.fill();
-    ctx.beginPath(); ctx.arc(bgX1 + 600, 400, 220, Math.PI, 0); ctx.fill();
-    ctx.beginPath(); ctx.arc(bgX2 + 200, 400, 160, Math.PI, 0); ctx.fill();
-    ctx.beginPath(); ctx.arc(bgX2 + 600, 400, 220, Math.PI, 0); ctx.fill();
-}
-
-function drawParallaxFloor() {
-    // Camada Próxima (Chão): Se move na velocidade total do jogo
-    floorX1 -= gameSpeed;
-    floorX2 -= gameSpeed;
-    if (floorX1 <= -800) floorX1 = 800 + floorX2;
-    if (floorX2 <= -800) floorX2 = 800 + floorX1;
-
-    // Chão Base Rosa Choque
-    ctx.fillStyle = "#ff1493";
-    ctx.fillRect(0, 360, canvas.width, 40);
-
-    // Listra de Confeitaria branca com quebras para dar sensação de corrida rápida
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(floorX1, 360, 400, 5);
-    ctx.fillRect(floorX1 + 500, 360, 200, 5);
-    ctx.fillRect(floorX2, 360, 400, 5);
-    ctx.fillRect(floorX2 + 500, 360, 200, 5);
-}
-
-// Desenhar Interface HUD (Corações de Vida)
-function drawHUD() {
-    ctx.fillStyle = "#ff1493"; ctx.font = "bold 20px 'Courier New'";
-    ctx.fillText(`SCORE: ${score}`, 20, 40);
-
-    // Desenhar Corações de Vida ♥
-    ctx.font = "24px Arial";
-    let hearts = "";
-    for(let i = 0; i < 3; i++) {
-        hearts += (i < lives) ? "💖" : "🖤"; // Coração rosa ativo, preto desativado
-    }
-    ctx.fillText(hearts, 660, 40);
-
-    if (hasWings) {
-        ctx.fillStyle = "#00ffff"; ctx.font = "bold 18px 'Courier New'";
-        ctx.fillText(`PROTETOR DE VOO ATIVO: ${Math.ceil(wingsTimer/60)}s`, 20, 70);
-    }
-}
-
-// Loop Principal do Jogo
+// --- RENDERIZADOR PRINCIPAL ---
 function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Renderizar Fundo e Chão móveis (Parallax)
-    drawParallaxBackground();
-    drawParallaxFloor();
+    // Fundo Mágico Rolante (Parallax)
+    bgX -= gameSpeed * 0.15; if (bgX <= -400) bgX = 0;
+    ctx.fillStyle = "#d2691e"; // Montanhas de chocolate ilustradas de fundo suave
+    ctx.beginPath(); ctx.arc(bgX + 100, 240, 80, Math.PI, 0); ctx.fill();
+    ctx.beginPath(); ctx.arc(bgX + 300, 240, 110, Math.PI, 0); ctx.fill();
+    ctx.beginPath(); ctx.arc(bgX + 500, 240, 80, Math.PI, 0); ctx.fill();
 
-    // Reduzir contagem de frames de invulnerabilidade
-    if (invulnerableFrames > 0) invulnerableFrames--;
+    // Chão de Doce Rosa Vibrante
+    ctx.fillStyle = "#ff1493"; ctx.fillRect(0, 210, canvas.width, 30);
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 210, canvas.width, 2);
 
-    // 2. Lógica do Power-up de Voo
+    if (invulnerable > 0) invulnerable--;
+
+    // Lógica das Asas
     if (hasWings) {
         wingsTimer--;
-        gravity = 0.2; 
-        if (keys["Space"] || keys["ArrowUp"]) {
-            player.vy = -5.5; 
-            createStars(player.x, player.y + player.height/2, "#00ffff"); 
-        }
-        if (wingsTimer <= 0) {
-            hasWings = false;
-            gravity = normalGravity;
-        }
+        if (wingsTimer <= 0) hasWings = false;
     }
 
-    // Física e limites da Barbie
-    player.vy += gravity; player.y += player.vy;
-    if (player.y > 290) { player.y = 290; player.vy = 0; player.isJumping = false; }
-    if (player.y < 0) player.y = 0;
+    // Movimentação da Barbie
+    player.vy += hasWings ? 0.1 : gravity;
+    player.y += player.vy;
+    if (player.y > 162) { player.y = 162; player.vy = 0; player.isJumping = false; }
+    if (player.y < 5) player.y = 5;
 
-    // Efeito visual de piscar se a Barbie estiver invulnerável (pós-dano)
-    if (invulnerableFrames === 0 || Math.floor(invulnerableFrames / 5) % 2 === 0) {
+    // Movimentação Fluida do Cutie Assistente (Seguindo a Barbie com atraso suave)
+    cutieSidekick.targetY = player.y - 15;
+    cutieSidekick.y += (cutieSidekick.targetY - cutieSidekick.y) * 0.08;
+
+    // DESENHAR O CUTIE ASSISTENTE FLUTUANTE
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cutieSidekick.x + 11, cutieSidekick.y + 11, 11, 0, Math.PI*2);
+    ctx.clip(); // Corta em círculo para o avatar ficar redondo
+    try { ctx.drawImage(imgCutie, cutieSidekick.x, cutieSidekick.y, cutieSidekick.width, cutieSidekick.height); } catch(e){}
+    ctx.restore();
+    // Detalhe brilhante no Cutie
+    ctx.strokeStyle = "#00ffff"; ctx.lineWidth = 1.5;
+    ctx.strokeRect(cutieSidekick.x, cutieSidekick.y, cutieSidekick.width, cutieSidekick.height);
+
+    // DESENHAR A BARBIE (Piscando se levou dano)
+    if (invulnerable === 0 || Math.floor(invulnerable / 4) % 2 === 0) {
         try {
             ctx.drawImage(imgBarbie, player.x, player.y, player.width, player.height);
-            if (hasWings) ctx.drawImage(imgWings, player.x - 25, player.y + 10, 35, 35);
+            if (hasWings) ctx.drawImage(imgWings, player.x - 14, player.y + 8, 22, 22);
         } catch(e) {
             ctx.fillStyle = "#ff1493"; ctx.fillRect(player.x, player.y, player.width, player.height);
         }
     }
 
-    // 3. Atualizar Tiros do Lança-Cupcakes
+    // Tiros do Lança-Cupcakes
     for (let i = projectiles.length - 1; i >= 0; i--) {
         let proj = projectiles[i]; proj.x += proj.speed;
         try { ctx.drawImage(imgCupcake, proj.x, proj.y, proj.width, proj.height); } catch(e){}
@@ -314,38 +297,31 @@ function update() {
             if (checkCollision(proj, obstacles[j])) {
                 createStars(obstacles[j].x, obstacles[j].y);
                 obstacles.splice(j, 1); projectiles.splice(i, 1);
-                score += 5; playSound('collect'); gameSpeed += 0.05; break;
+                score += 5; break;
             }
         }
         if (proj && proj.x > canvas.width) projectiles.splice(i, 1);
     }
 
-    // 4. Atualizar Obstáculos e processar Sistema de 3 Vidas
+    // Obstáculos Reais do Filme
     for (let i = obstacles.length - 1; i >= 0; i--) {
         let obs = obstacles[i]; obs.x -= gameSpeed;
         try { ctx.drawImage(obs.type === 'fly' ? imgFly : imgGummy, obs.x, obs.y, obs.width, obs.height); } catch(e){}
 
         if (checkCollision(player, obs)) {
-            if (invulnerableFrames === 0) { // Só leva dano se não estiver invulnerável
-                lives--;
-                invulnerableFrames = 90; // 1.5 segundos de imunidade para se recuperar
+            if (invulnerable === 0) {
+                lives--; invulnerable = 70;
                 playSound('hit');
-                createStars(player.x + 25, player.y + 35, "#ff0000");
-
-                if (lives <= 0) {
-                    gameOver = true;
-                    cutieSpeak("gameover");
-                } else if (lives === 1) {
-                    cutieSpeak("low_life");
-                } else {
-                    cutieSpeak("hurt");
-                }
+                createStars(player.x + 15, player.y + 20, "#ff0000");
+                if (lives <= 0) { gameOver = true; updateCutieDialogue("gameover"); }
+                else if (lives === 1) { updateCutieDialogue("low"); }
+                else { updateCutieDialogue("hit"); }
             }
         }
         if (obs.x + obs.width < 0) obstacles.splice(i, 1);
     }
 
-    // 5. Atualizar Coletáveis
+    // Coleta de Cupcakes bônus
     for (let i = collectibles.length - 1; i >= 0; i--) {
         let cup = collectibles[i]; cup.x -= gameSpeed;
         try { ctx.drawImage(imgCupcake, cup.x, cup.y, cup.width, cup.height); } catch(e){}
@@ -357,36 +333,51 @@ function update() {
         if (cup.x + cup.width < 0) collectibles.splice(i, 1);
     }
 
-    // 6. Atualizar Power-ups de Asas
+    // Power-up Asas Rosa
     for (let i = powerups.length - 1; i >= 0; i--) {
         let pw = powerups[i]; pw.x -= gameSpeed;
         try { ctx.drawImage(imgWings, pw.x, pw.y, pw.width, pw.height); } catch(e){}
 
         if (checkCollision(player, pw)) {
-            hasWings = true; wingsTimer = 360; // 6 segundos de voo
-            playSound('powerup'); cutieSpeak("powerup");
-            createStars(pw.x, pw.y, "#fff"); powerups.splice(i, 1);
+            hasWings = true; wingsTimer = 300; // 5 segundos
+            updateCutieDialogue("powerup"); createStars(pw.x, pw.y, "#fff");
+            powerups.splice(i, 1);
         }
         if (pw.x + pw.width < 0) powerups.splice(i, 1);
     }
 
-    // 7. Atualizar Partículas (Estrelas)
+    // Partículas de Estrelas Neon
     for (let i = particles.length - 1; i >= 0; i--) {
-        let p = particles[i]; p.x += p.vx; p.y += p.vy; p.alpha -= 0.02;
+        let p = particles[i]; p.x += p.vx; p.y += p.vy; p.alpha -= 0.025;
         ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
         ctx.fillRect(p.x, p.y, p.size, p.size); ctx.restore();
         if (p.alpha <= 0) particles.splice(i, 1);
     }
 
-    // Exibir Interface
-    drawHUD();
+    // HUD: Pontos e Corações Desenhor Direto em Arte de Cristal
+    ctx.fillStyle = "#fff"; ctx.font = "bold 13px Arial";
+    ctx.fillText(`PONTOS: ${score}`, 15, 22);
 
-    // Tela de Game Over
+    // Corações desenhados como cristais de vida vetoriais elegantes
+    for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = i < lives ? "#ff1493" : "#4a4a4a";
+        let hx = 330 + (i * 20);
+        let hy = 12;
+        // Desenha formato de joia/coração geométrico fofo
+        ctx.beginPath();
+        ctx.moveTo(hx, hy + 5);
+        ctx.bezierCurveTo(hx, hy, hx - 6, hy, hx - 6, hy + 6);
+        ctx.bezierCurveTo(hx - 6, hy + 12, hx, hy + 16, hx, hy + 18);
+        ctx.bezierCurveTo(hx, hy + 16, hx + 6, hy + 12, hx + 6, hy + 6);
+        ctx.bezierCurveTo(hx + 6, hy, hx, hy, hx, hy + 5);
+        ctx.fill();
+    }
+
     if (gameOver) {
-        ctx.fillStyle = "rgba(0,0,0,0.75)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-        ctx.fillStyle = "#fff"; ctx.font = "bold 35px Arial"; ctx.textAlign = "center";
-        ctx.fillText("SISTEMA OPERACIONAL TRAVOU!", canvas.width/2, canvas.height/2);
-        ctx.font = "18px 'Courier New'"; ctx.fillText("Pressione 'R' para compilar e restaurar a Barbie", canvas.width/2, canvas.height/2 + 40);
+        ctx.fillStyle = "rgba(219, 18, 125, 0.85)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 22px Arial"; ctx.textAlign = "center";
+        ctx.fillText("CÓDIGO INTERROMPIDO!", canvas.width / 2, canvas.height / 2 - 10);
+        ctx.font = "12px Arial"; ctx.fillText("Toque em 'PULAR' para reiniciar os patins", canvas.width / 2, canvas.height / 2 + 15);
         ctx.textAlign = "start"; return;
     }
 
@@ -394,18 +385,419 @@ function update() {
 }
 
 function restartGame() {
-    score = 0; gameOver = false; hasWings = false; gravity = normalGravity;
-    lives = 3; invulnerableFrames = 0; gameSpeed = 5;
+    score = 0; gameOver = false; hasWings = false; lives = 3; invulnerable = 0;
     obstacles.length = 0; collectibles.length = 0; projectiles.length = 0; powerups.length = 0; particles.length = 0;
-    player.y = 290; player.vy = 0;
-    cutieSpeak("start"); update();
+    player.y = 162; player.vy = 0;
+    updateCutieDialogue("start"); update();
 }
 
-// Inicializações e Triggers de Tempo
+// Iniciar
 spawnObstacle(); spawnCupcake(); spawnPowerup();
-setTimeout(() => cutieSpeak("start"), 1000);
+setTimeout(() => updateCutieDialogue("start"), 1000);
 update();
 </script>
 
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Barbie: Caverna de Cupcakes - Versão do Filme</title>
+    <style>
+        body {
+            margin: 0;
+            background: #ffb6c1; 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #cutie-dialogue {
+            background: #fff0f5;
+            border: 3px solid #ff69b4;
+            border-radius: 12px;
+            padding: 8px 15px;
+            width: 90%;
+            max-width: 360px;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 10px rgba(255,20,147,0.2);
+            font-size: 13px;
+            font-weight: bold;
+            color: #ff1493;
+            text-align: center;
+        }
+        #canvas-container {
+            position: relative;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 4px solid #ff69b4;
+        }
+        canvas {
+            background: linear-gradient(#ffb6c1, #ffe4e1);
+            display: block;
+        }
+        /* Painel de Botões Virtuais para o Celular */
+        #mobile-controls {
+            display: flex;
+            justify-content: space-between;
+            width: 90%;
+            max-width: 360px;
+            margin-top: 12px;
+            gap: 20px;
+        }
+        .btn {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            box-shadow: 0 5px 0 #db127d;
+            background: linear-gradient(#ff1493, #ff69b4);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            cursor: pointer;
+            text-align: center;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #db127d;
+        }
+        #btn-shoot {
+            background: linear-gradient(#00ffff, #00bfff);
+            box-shadow: 0 5px 0 #008b8b;
+        }
+        #btn-shoot:active {
+            box-shadow: 0 1px 0 #008b8b;
+        }
+    </style>
+</head>
+<body>
+
+<div id="cutie-dialogue">
+    🤖 <span id="dialogue-text">Carregando os gráficos do filme... Toque na tela para ativar o som e os patins!</span>
+</div>
+
+<div id="canvas-container">
+    <canvas id="gameCanvas" width="400" height="240"></canvas>
+</div>
+
+<!-- Botões de toque visíveis no celular -->
+<div id="mobile-controls">
+    <button class="btn" id="btn-jump">PULAR / VOAR</button>
+    <button class="btn" id="btn-shoot">ATIRAR 🧁</button>
+</div>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const dialogueText = document.getElementById("dialogue-text");
+
+// --- URLS DE GRÁFICOS REAIS (Substituindo os quadrados antigos) ---
+const imgBarbie = new Image(); imgBarbie.src = "https://postimg.cc";
+const imgCutie = new Image(); imgCutie.src = "https://unsplash.com"; // Foto do Cutie
+const imgFly = new Image(); imgFly.src = "https://postimg.cc";
+const imgGummy = new Image(); imgGummy.src = "https://postimg.cc";
+const imgCupcake = new Image(); imgCupcake.src = "https://postimg.cc";
+const imgWings = new Image(); imgWings.src = "https://postimg.cc";
+
+// Estado Geral
+let score = 0;
+let gameOver = false;
+let gameSpeed = 3.5;
+const gravity = 0.4;
+let lives = 3;
+let invulnerable = 0;
+
+// Power-up de Voo
+let hasWings = false;
+let wingsTimer = 0;
+
+// Posições Parallax (Fundo mágico)
+let bgX = 0;
+let floorX = 0;
+
+// Entidades
+const player = { x: 50, y: 150, width: 34, height: 48, vy: 0, isJumping: false };
+// Nova mecânica: Cutie voando fisicamente ao lado esquerdo da Barbie
+const cutieSidekick = { x: 15, y: 140, targetY: 140, width: 22, height: 22 };
+
+const obstacles = []; const collectibles = []; const particles = []; const projectiles = []; const powerups = [];
+
+// Audio Ativado por Ação do Usuário
+let audioCtx = null;
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+
+function playSound(type) {
+    if (!audioCtx) return;
+    try {
+        let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        if (type === 'jump') {
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(hasWings ? 700 : 450, audioCtx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.12);
+        } else if (type === 'collect') {
+            osc.type = 'sine'; osc.frequency.setValueAtTime(550, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.18);
+        } else if (type === 'hit') {
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+        }
+    } catch(e){}
+}
+
+function updateCutieDialogue(event) {
+    const lines = {
+        start: "Estamos dentro do código da Caverna de Cupcakes! Vamos lá, Barbie!",
+        powerup: "Uau! O código das asas funcionou! Segure o botão para voar!",
+        hit: "Cuidado! Esse bug tirou um dos nossos corações de energia!",
+        low: "Aviso do sistema: Só nos resta um coração! Foco total!",
+        gameover: "A simulação travou! Toque na tela para reiniciar o nível!"
+    };
+    if(lines[event]) dialogueText.innerText = lines[event];
+}
+
+// Configuração de Controles (Teclado + Toque nos Botões)
+function handleJump() {
+    if (gameOver) { restartGame(); return; }
+    initAudio();
+    if (hasWings) {
+        player.vy = -3.5;
+        createStars(player.x, player.y + 20, "#00ffff");
+    } else if (!player.isJumping) {
+        player.vy = -8.5;
+        player.isJumping = true;
+        playSound('jump');
+    }
+}
+
+function handleShoot() {
+    if (gameOver) return;
+    initAudio();
+    projectiles.push({ x: player.x + player.width, y: player.y + 20, width: 14, height: 14, speed: 6.5 });
+    playSound('hit');
+}
+
+// Eventos de Botões do Celular
+document.getElementById("btn-jump").addEventListener("touchstart", (e) => { e.preventDefault(); handleJump(); });
+document.getElementById("btn-shoot").addEventListener("touchstart", (e) => { e.preventDefault(); handleShoot(); });
+// Suporte extra para clique no PC caso queira testar
+document.getElementById("btn-jump").addEventListener("mousedown", handleJump);
+document.getElementById("btn-shoot").addEventListener("mousedown", handleShoot);
+
+window.addEventListener("keydown", (e) => {
+    if (e.code === "Space" || e.code === "ArrowUp") handleJump();
+    if (e.code === "KeyX") handleShoot();
+    if (e.code === "KeyR" && gameOver) restartGame();
+});
+canvas.addEventListener("touchstart", () => initAudio());
+
+// Spawners de Itens
+function spawnObstacle() {
+    if (gameOver) return;
+    obstacles.push({ x: canvas.width, y: 180, width: 24, height: 24, type: Math.random() > 0.5 ? 'fly' : 'gummy' });
+    setTimeout(spawnObstacle, Math.random() * 1600 + 1400);
+}
+function spawnCupcake() {
+    if (gameOver) return;
+    collectibles.push({ x: canvas.width, y: Math.random() * 70 + 100, width: 20, height: 20 });
+    setTimeout(spawnCupcake, Math.random() * 1200 + 900);
+}
+function spawnPowerup() {
+    if (gameOver) return;
+    if (!hasWings && powerups.length === 0) powerups.push({ x: canvas.width, y: 120, width: 22, height: 22 });
+    setTimeout(spawnPowerup, 12000);
+}
+
+function createStars(x, y, color = null) {
+    for (let i = 0; i < 6; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
+            size: Math.random() * 2 + 1.5, alpha: 1,
+            color: color || (Math.random() > 0.5 ? "#ff1493" : "#00ffff")
+        });
+    }
+}
+
+function checkCollision(r1, r2) {
+    return r1.x < r2.x + r2.width && r1.x + r1.width > r2.x && r1.y < r2.y + r2.height && r1.y + r1.height > r2.y;
+}
+
+// --- RENDERIZADOR PRINCIPAL ---
+function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Fundo Mágico Rolante (Parallax)
+    bgX -= gameSpeed * 0.15; if (bgX <= -400) bgX = 0;
+    ctx.fillStyle = "#d2691e"; // Montanhas de chocolate ilustradas de fundo suave
+    ctx.beginPath(); ctx.arc(bgX + 100, 240, 80, Math.PI, 0); ctx.fill();
+    ctx.beginPath(); ctx.arc(bgX + 300, 240, 110, Math.PI, 0); ctx.fill();
+    ctx.beginPath(); ctx.arc(bgX + 500, 240, 80, Math.PI, 0); ctx.fill();
+
+    // Chão de Doce Rosa Vibrante
+    ctx.fillStyle = "#ff1493"; ctx.fillRect(0, 210, canvas.width, 30);
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 210, canvas.width, 2);
+
+    if (invulnerable > 0) invulnerable--;
+
+    // Lógica das Asas
+    if (hasWings) {
+        wingsTimer--;
+        if (wingsTimer <= 0) hasWings = false;
+    }
+
+    // Movimentação da Barbie
+    player.vy += hasWings ? 0.1 : gravity;
+    player.y += player.vy;
+    if (player.y > 162) { player.y = 162; player.vy = 0; player.isJumping = false; }
+    if (player.y < 5) player.y = 5;
+
+    // Movimentação Fluida do Cutie Assistente (Seguindo a Barbie com atraso suave)
+    cutieSidekick.targetY = player.y - 15;
+    cutieSidekick.y += (cutieSidekick.targetY - cutieSidekick.y) * 0.08;
+
+    // DESENHAR O CUTIE ASSISTENTE FLUTUANTE
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cutieSidekick.x + 11, cutieSidekick.y + 11, 11, 0, Math.PI*2);
+    ctx.clip(); // Corta em círculo para o avatar ficar redondo
+    try { ctx.drawImage(imgCutie, cutieSidekick.x, cutieSidekick.y, cutieSidekick.width, cutieSidekick.height); } catch(e){}
+    ctx.restore();
+    // Detalhe brilhante no Cutie
+    ctx.strokeStyle = "#00ffff"; ctx.lineWidth = 1.5;
+    ctx.strokeRect(cutieSidekick.x, cutieSidekick.y, cutieSidekick.width, cutieSidekick.height);
+
+    // DESENHAR A BARBIE (Piscando se levou dano)
+    if (invulnerable === 0 || Math.floor(invulnerable / 4) % 2 === 0) {
+        try {
+            ctx.drawImage(imgBarbie, player.x, player.y, player.width, player.height);
+            if (hasWings) ctx.drawImage(imgWings, player.x - 14, player.y + 8, 22, 22);
+        } catch(e) {
+            ctx.fillStyle = "#ff1493"; ctx.fillRect(player.x, player.y, player.width, player.height);
+        }
+    }
+
+    // Tiros do Lança-Cupcakes
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        let proj = projectiles[i]; proj.x += proj.speed;
+        try { ctx.drawImage(imgCupcake, proj.x, proj.y, proj.width, proj.height); } catch(e){}
+        
+        for (let j = obstacles.length - 1; j >= 0; j--) {
+            if (checkCollision(proj, obstacles[j])) {
+                createStars(obstacles[j].x, obstacles[j].y);
+                obstacles.splice(j, 1); projectiles.splice(i, 1);
+                score += 5; break;
+            }
+        }
+        if (proj && proj.x > canvas.width) projectiles.splice(i, 1);
+    }
+
+    // Obstáculos Reais do Filme
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        let obs = obstacles[i]; obs.x -= gameSpeed;
+        try { ctx.drawImage(obs.type === 'fly' ? imgFly : imgGummy, obs.x, obs.y, obs.width, obs.height); } catch(e){}
+
+        if (checkCollision(player, obs)) {
+            if (invulnerable === 0) {
+                lives--; invulnerable = 70;
+                playSound('hit');
+                createStars(player.x + 15, player.y + 20, "#ff0000");
+                if (lives <= 0) { gameOver = true; updateCutieDialogue("gameover"); }
+                else if (lives === 1) { updateCutieDialogue("low"); }
+                else { updateCutieDialogue("hit"); }
+            }
+        }
+        if (obs.x + obs.width < 0) obstacles.splice(i, 1);
+    }
+
+    // Coleta de Cupcakes bônus
+    for (let i = collectibles.length - 1; i >= 0; i--) {
+        let cup = collectibles[i]; cup.x -= gameSpeed;
+        try { ctx.drawImage(imgCupcake, cup.x, cup.y, cup.width, cup.height); } catch(e){}
+
+        if (checkCollision(player, cup)) {
+            score += 10; createStars(cup.x, cup.y); playSound('collect');
+            collectibles.splice(i, 1);
+        }
+        if (cup.x + cup.width < 0) collectibles.splice(i, 1);
+    }
+
+    // Power-up Asas Rosa
+    for (let i = powerups.length - 1; i >= 0; i--) {
+        let pw = powerups[i]; pw.x -= gameSpeed;
+        try { ctx.drawImage(imgWings, pw.x, pw.y, pw.width, pw.height); } catch(e){}
+
+        if (checkCollision(player, pw)) {
+            hasWings = true; wingsTimer = 300; // 5 segundos
+            updateCutieDialogue("powerup"); createStars(pw.x, pw.y, "#fff");
+            powerups.splice(i, 1);
+        }
+        if (pw.x + pw.width < 0) powerups.splice(i, 1);
+    }
+
+    // Partículas de Estrelas Neon
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i]; p.x += p.vx; p.y += p.vy; p.alpha -= 0.025;
+        ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.size, p.size); ctx.restore();
+        if (p.alpha <= 0) particles.splice(i, 1);
+    }
+
+    // HUD: Pontos e Corações Desenhor Direto em Arte de Cristal
+    ctx.fillStyle = "#fff"; ctx.font = "bold 13px Arial";
+    ctx.fillText(`PONTOS: ${score}`, 15, 22);
+
+    // Corações desenhados como cristais de vida vetoriais elegantes
+    for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = i < lives ? "#ff1493" : "#4a4a4a";
+        let hx = 330 + (i * 20);
+        let hy = 12;
+        // Desenha formato de joia/coração geométrico fofo
+        ctx.beginPath();
+        ctx.moveTo(hx, hy + 5);
+        ctx.bezierCurveTo(hx, hy, hx - 6, hy, hx - 6, hy + 6);
+        ctx.bezierCurveTo(hx - 6, hy + 12, hx, hy + 16, hx, hy + 18);
+        ctx.bezierCurveTo(hx, hy + 16, hx + 6, hy + 12, hx + 6, hy + 6);
+        ctx.bezierCurveTo(hx + 6, hy, hx, hy, hx, hy + 5);
+        ctx.fill();
+    }
+
+    if (gameOver) {
+        ctx.fillStyle = "rgba(219, 18, 125, 0.85)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 22px Arial"; ctx.textAlign = "center";
+        ctx.fillText("CÓDIGO INTERROMPIDO!", canvas.width / 2, canvas.height / 2 - 10);
+        ctx.font = "12px Arial"; ctx.fillText("Toque em 'PULAR' para reiniciar os patins", canvas.width / 2, canvas.height / 2 + 15);
+        ctx.textAlign = "start"; return;
+    }
+
+    requestAnimationFrame(update);
+}
+
+function restartGame() {
+    score = 0; gameOver = false; hasWings = false; lives = 3; invulnerable = 0;
+    obstacles.length = 0; collectibles.length = 0; projectiles.length = 0; powerups.length = 0; particles.length = 0;
+    player.y = 162; player.vy = 0;
+    updateCutieDialogue("start"); update();
+}
+
+// Iniciar
+spawnObstacle(); spawnCupcake(); spawnPowerup();
+setTimeout(() => updateCutieDialogue("start"), 1000);
+update();
+</script>
+
+</body>
+</html>
+
